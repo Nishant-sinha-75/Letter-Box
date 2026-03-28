@@ -906,7 +906,12 @@ window.doSearch = async () => {
   const results = new Map();
   try {
     const [uSnap, eSnap] = await Promise.all([
-      getDocs(query(collection(db,'users'),where('username','>=',q),where('username','<=',q+'\uf8ff'))),
+      getDocs(query(
+  collection(db,'users'),
+  where('username','>=',q),
+  where('username','<=',q+'\uf8ff'),
+  orderBy('username')
+))
       getDocs(query(collection(db,'users'),where('email','>=',q),where('email','<=',q+'\uf8ff')))
     ]);
     uSnap.forEach(d => { if (d.id !== currentUser.uid) results.set(d.id,{id:d.id,...d.data()}); });
