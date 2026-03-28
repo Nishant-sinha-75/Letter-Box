@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>LetterBox</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  /* ═══════════════════════════════════════════
+     RESET & ROOT
+  ═══════════════════════════════════════════ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg:        #0A0A0F;
+    --surface:   #111118;
+    --card:      #18181F;
+    --border:    #252530;
+    --primary:   #7C6FFF;
+    --primary-d: #5A50D4;
+    --primary-f: rgba(124,111,255,.14);
+    --text:      #F0EFF8;
+    --text2:     #888899;
+    --text3:     #444455;
+    --online:    #4ADE80;
+    --error:     #FF5C5C;
+    --input:     #16161E;
+    --bubble-me: #7C6FFF;
+    --bubble-u:  #1C1C28;
+    --font-h:    'Syne', sans-serif;
+    --font-b:    'DM Sans', sans-serif;
+    --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 22px; --r-full: 999px;
+    --ease: cubic-bezier(.4,0,.2,1);
+  }
+
+  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--font-b); }
+
+  /* ═══════════════════════════════════════════
+     APP SHELL
+  ═══════════════════════════════════════════ */
+  #app { width: 100vw; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+
+  /* ═══════════════════════════════════════════
+     SCREENS
+  ═══════════════════════════════════════════ */
+  .screen {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    opacity: 0; pointer-events: none;
+    transform: translateX(20px);
+    transition: opacity .25s var(--ease), transform .25s var(--ease);
+    overflow: hidden;
+  }
+  .screen.active {
+    opacity: 1; pointer-events: all;
+    transform: translateX(0);
+  }
+  .screen.slide-left  { transform: translateX(-30px); }
+  .screen.slide-right { transform: translateX(30px); }
+
+  /* ═══════════════════════════════════════════
+     SHARED COMPONENTS
+  ═══════════════════════════════════════════ */
+  /* Spinner */
+  .spinner-wrap { flex:1; display:flex; align-items:center; justify-content:center; }
+  .spinner { width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Header */
+  .header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px env(safe-area-inset-bottom, 0);
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding-top: max(14px, env(safe-area-inset-top));
+    flex-shrink: 0;
+  }
+  .header-title { font-family: var(--font-h); font-size: 1.25rem; font-weight: 800; flex: 1; }
+  .icon-btn { width: 38px; height: 38px; border-radius: var(--r-full); border: none; background: transparent; color: var(--text); font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .15s; }
+  .icon-btn:active { background: var(--card); }
+
+  /* Input field */
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: .75rem; font-weight: 600; color: var(--text2); letter-spacing: .04em; text-transform: uppercase; }
+  .input-wrap {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--input); border: 1px solid var(--border);
+    border-radius: var(--r-md); padding: 0 12px; height: 50px;
+    transition: border-color .2s;
+  }
+  .input-wrap:focus-within { border-color: var(--primary); }
+  .input-wrap svg { flex-shrink: 0; opacity: .5; }
+  .input-wrap input {
+    flex: 1; background: none; border: none; outline: none;
+    color: var(--text); font-family: var(--font-b); font-size: .9rem;
+  }
+  .input-wrap input::placeholder { color: var(--text3); }
+
+  /* Primary button */
+  .btn-primary {
+    width: 100%; height: 50px; border: none; border-radius: var(--r-md);
+    background: var(--primary); color: #fff;
+    font-family: var(--font-h); font-size: 1rem; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: opacity .2s, transform .15s;
+    box-shadow: 0 6px 24px rgba(124,111,255,.3);
+  }
+  .btn-primary:active { opacity: .85; transform: scale(.98); }
+  .btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+  /* Avatar */
+  .avatar {
+    flex-shrink: 0; border-radius: 50%; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-h); font-weight: 700; color: #fff;
+    position: relative;
+  }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+  .avatar-initials { pointer-events: none; }
+  .online-dot {
+    position: absolute; bottom: 1px; right: 1px;
+    width: 10px; height: 10px; border-radius: 50%;
+    border: 2px solid var(--surface);
+  }
+
+  /* Toast */
+  #toast {
+    position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--card); color: var(--text); border: 1px solid var(--border);
+    border-radius: var(--r-full); padding: 10px 20px; font-size: .85rem;
+    opacity: 0; pointer-events: none; transition: all .3s var(--ease);
+    z-index: 9999; white-space: nowrap; max-width: 90vw;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.error { border-color: var(--error); color: var(--error); }
+
+  /* Bottom tab bar */
+  .tab-bar {
+    display: flex; background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom, 8px);
+    flex-shrink: 0;
+  }
+  .tab-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    gap: 3px; padding: 10px 4px 6px; border: none; background: none;
+    color: var(--text3); font-family: var(--font-b); font-size: .62rem;
+    font-weight: 600; cursor: pointer; transition: color .2s; letter-spacing: .02em;
+  }
+  .tab-btn svg { width: 22px; height: 22px; }
+  .tab-btn.active { color: var(--primary); }
+
+  /* Empty state */
+  .empty-state {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 10px; padding: 40px; text-align: center;
+  }
+  .empty-state svg { opacity: .25; }
+  .empty-state h3 { font-family: var(--font-h); font-size: 1.1rem; font-weight: 700; color: var(--text); }
+  .empty-state p { color: var(--text2); font-size: .85rem; }
+
+  /* ═══════════════════════════════════════════
+     AUTH SCREENS
+  ═══════════════════════════════════════════ */
+  .auth-scroll { flex: 1; overflow-y: auto; padding: 32px 20px 40px; display: flex; flex-direction: column; gap: 0; }
+  .auth-logo { display: flex; flex-direction: column; align-items: center; margin-bottom: 36px; }
+  .logo-box {
+    width: 72px; height: 72px; border-radius: 20px;
+    background: var(--primary-f); border: 1px solid rgba(124,111,255,.3);
+    display: flex; align-items: center; justify-content: center; margin-bottom: 14px;
+  }
+  .auth-logo h1 { font-family: var(--font-h); font-size: 2rem; font-weight: 800; letter-spacing: -.01em; }
+  .auth-logo p { color: var(--text2); font-size: .85rem; margin-top: 4px; }
+  .auth-form { display: flex; flex-direction: column; gap: 14px; }
+  .auth-link { text-align: center; color: var(--text2); font-size: .88rem; margin-top: 4px; }
+  .auth-link a { color: var(--primary); font-weight: 600; text-decoration: none; }
+  .forgot-link { text-align: right; font-size: .82rem; color: var(--primary); font-weight: 600; cursor: pointer; }
+  .back-btn { display: flex; align-items: center; gap: 6px; background: none; border: none; color: var(--text); font-size: .9rem; cursor: pointer; margin-bottom: 24px; font-family: var(--font-b); font-weight: 600; }
+  .auth-subtitle { color: var(--text2); font-size: .9rem; margin-bottom: 24px; line-height: 1.5; }
+  .auth-big-title { font-family: var(--font-h); font-size: 1.8rem; font-weight: 800; margin-bottom: 8px; }
+  .eye-btn { background: none; border: none; color: var(--text3); cursor: pointer; padding: 4px; display: flex; }
+  .sent-icon { width: 64px; height: 64px; border-radius: 18px; background: var(--primary-f); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+
+  /* ═══════════════════════════════════════════
+     HOME SCREEN
+  ═══════════════════════════════════════════ */
+  .chat-list { flex: 1; overflow-y: auto; }
+  .chat-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    cursor: pointer; transition: background .15s;
+  }
+  .chat-item:active { background: var(--card); }
+  .chat-info { flex: 1; min-width: 0; }
+  .chat-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+  .chat-name { font-weight: 600; font-size: .95rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 8px; }
+  .chat-time { font-size: .72rem; color: var(--text2); flex-shrink: 0; }
+  .chat-last { font-size: .82rem; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ═══════════════════════════════════════════
+     SEARCH SCREEN
+  ═══════════════════════════════════════════ */
+  .search-body { flex: 1; display: flex; flex-direction: column; padding: 12px 16px; overflow: hidden; }
+  .search-bar {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--input); border: 1px solid var(--border);
+    border-radius: var(--r-md); padding: 0 12px; height: 46px; margin-bottom: 10px;
+    transition: border-color .2s;
+  }
+  .search-bar:focus-within { border-color: var(--primary); }
+  .search-bar input { flex: 1; background: none; border: none; outline: none; color: var(--text); font-family: var(--font-b); font-size: .9rem; }
+  .search-bar input::placeholder { color: var(--text3); }
+  .clear-btn { background: none; border: none; color: var(--text3); cursor: pointer; display: flex; }
+  .user-list { flex: 1; overflow-y: auto; }
+  .user-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+    cursor: pointer; transition: opacity .15s;
+  }
+  .user-item:active { opacity: .7; }
+  .user-info { flex: 1; }
+  .user-name { font-weight: 600; font-size: .95rem; }
+  .user-uname { font-size: .8rem; color: var(--text2); margin-top: 2px; }
+  .chat-icon-wrap { width: 36px; height: 36px; border-radius: 50%; background: var(--primary-f); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+  /* ═══════════════════════════════════════════
+     CHAT SCREEN
+  ═══════════════════════════════════════════ */
+  #screen-chat .header { padding-bottom: 12px; }
+  .chat-header-info { flex: 1; }
+  .chat-header-name { font-weight: 700; font-size: 1rem; font-family: var(--font-h); line-height: 1; }
+  .chat-header-status { font-size: .72rem; color: var(--text2); margin-top: 3px; }
+  .chat-header-status.online { color: var(--online); }
+
+  .messages-wrap { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+  .msg-row { display: flex; }
+  .msg-row.me { justify-content: flex-end; }
+  .msg-row.them { justify-content: flex-start; }
+  .bubble {
+    max-width: 72vw; border-radius: 16px;
+    padding: 9px 12px 6px; position: relative;
+  }
+  .bubble.me { background: var(--bubble-me); border-bottom-right-radius: 4px; }
+  .bubble.them { background: var(--bubble-u); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .bubble-text { font-size: .9rem; line-height: 1.45; word-break: break-word; color: #fff; }
+  .bubble.them .bubble-text { color: var(--text); }
+  .bubble-meta { display: flex; align-items: center; justify-content: flex-end; gap: 3px; margin-top: 3px; }
+  .bubble-time { font-size: .65rem; color: rgba(255,255,255,.5); }
+  .bubble.them .bubble-time { color: var(--text3); }
+  .seen-icon { font-size: .75rem; line-height: 1; }
+  .bubble-img { width: min(220px, 62vw); height: 160px; object-fit: cover; border-radius: 10px; display: block; cursor: pointer; }
+  .bubble-img-wrap { padding: 4px 4px 6px; }
+  .date-sep { text-align: center; font-size: .72rem; color: var(--text3); margin: 8px 0; }
+
+  /* Input bar */
+  .input-bar {
+    display: flex; align-items: flex-end; gap: 8px;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0));
+    background: var(--surface); border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .attach-btn { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: none; background: none; color: var(--primary); cursor: pointer; border-radius: var(--r-full); transition: background .15s; flex-shrink: 0; margin-bottom: 1px; }
+  .attach-btn:active { background: var(--primary-f); }
+  .msg-input {
+    flex: 1; background: var(--input); border: 1px solid var(--border);
+    border-radius: 20px; padding: 10px 14px; color: var(--text);
+    font-family: var(--font-b); font-size: .9rem; outline: none; resize: none;
+    max-height: 120px; line-height: 1.4; transition: border-color .2s;
+  }
+  .msg-input:focus { border-color: var(--primary); }
+  .msg-input::placeholder { color: var(--text3); }
+  .send-btn {
+    width: 40px; height: 40px; border-radius: 50%; border: none;
+    background: var(--primary); color: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-bottom: 1px; transition: opacity .2s, transform .15s;
+    box-shadow: 0 4px 16px rgba(124,111,255,.35);
+  }
+  .send-btn:disabled { opacity: .35; cursor: default; }
+  .send-btn:not(:disabled):active { transform: scale(.92); }
+  .uploading-bar { padding: 6px 14px; display: flex; align-items: center; gap: 8px; font-size: .8rem; color: var(--text2); background: var(--card); }
+
+  /* Image lightbox */
+  #lightbox {
+    position: fixed; inset: 0; background: rgba(0,0,0,.95); z-index: 10000;
+    display: none; align-items: center; justify-content: center;
+  }
+  #lightbox.open { display: flex; }
+  #lightbox img { max-width: 100vw; max-height: 100dvh; object-fit: contain; }
+
+  /* ═══════════════════════════════════════════
+     PROFILE SCREEN
+  ═══════════════════════════════════════════ */
+  .profile-scroll { flex: 1; overflow-y: auto; padding: 20px 16px 40px; }
+  .profile-hero { display: flex; flex-direction: column; align-items: center; margin-bottom: 28px; }
+  .avatar-change { position: relative; cursor: pointer; margin-bottom: 14px; }
+  .avatar-overlay {
+    position: absolute; bottom: 0; right: 0; width: 28px; height: 28px;
+    background: var(--primary); border-radius: 50%; border: 2px solid var(--bg);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .profile-name { font-family: var(--font-h); font-size: 1.4rem; font-weight: 800; }
+  .profile-uname { color: var(--primary); font-size: .88rem; font-weight: 600; margin-top: 3px; }
+  .profile-email { color: var(--text2); font-size: .8rem; margin-top: 3px; }
+
+  .profile-card { background: var(--card); border-radius: var(--r-lg); border: 1px solid var(--border); padding: 14px 16px; margin-bottom: 12px; }
+  .profile-card-label { font-size: .68rem; text-transform: uppercase; letter-spacing: .07em; color: var(--text3); font-weight: 700; margin-bottom: 8px; }
+  .about-row { display: flex; align-items: flex-start; gap: 8px; }
+  .about-text { flex: 1; font-size: .9rem; line-height: 1.55; color: var(--text); }
+  .edit-btn { background: none; border: none; color: var(--primary); cursor: pointer; font-size: .8rem; font-weight: 600; padding: 2px 0; font-family: var(--font-b); }
+  .about-textarea {
+    width: 100%; background: var(--input); border: 1px solid var(--primary);
+    border-radius: var(--r-md); padding: 10px 12px; color: var(--text);
+    font-family: var(--font-b); font-size: .9rem; outline: none; resize: none;
+    line-height: 1.5;
+  }
+  .about-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+  .btn-sm { padding: 7px 16px; border-radius: var(--r-md); font-family: var(--font-b); font-size: .82rem; font-weight: 600; cursor: pointer; border: none; }
+  .btn-sm-cancel { background: var(--card); color: var(--text2); border: 1px solid var(--border); }
+  .btn-sm-save { background: var(--primary); color: #fff; }
+  .logout-btn {
+    width: 100%; height: 48px; border-radius: var(--r-md);
+    border: 1px solid rgba(255,92,92,.25); background: rgba(255,92,92,.08);
+    color: var(--error); font-family: var(--font-h); font-size: .95rem; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin-top: 8px; transition: background .2s;
+  }
+  .logout-btn:active { background: rgba(255,92,92,.16); }
+
+  /* ═══════════════════════════════════════════
+     SCROLLBAR
+  ═══════════════════════════════════════════ */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* ═══════════════════════════════════════════
+     LOADING SCREEN
+  ═══════════════════════════════════════════ */
+  #splash {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+    z-index: 9998; transition: opacity .4s;
+  }
+  #splash.hide { opacity: 0; pointer-events: none; }
+  #splash h1 { font-family: var(--font-h); font-size: 2.2rem; font-weight: 800; }
+  #splash p { color: var(--text2); font-size: .85rem; }
+</style>
+</head>
+<body>
+
+<!-- ━━ SPLASH ━━ -->
+<div id="splash">
+  <div style="width:70px;height:70px;border-radius:18px;background:rgba(124,111,255,.15);display:flex;align-items:center;justify-content:center;border:1px solid rgba(124,111,255,.3)">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4Z" stroke="#7C6FFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 6L12 13L2 6" stroke="#7C6FFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>
+  <h1>LetterBox</h1>
+  <p>Loading...</p>
+  <div class="spinner" style="margin-top:10px"></div>
+</div>
+
+<!-- ━━ APP ━━ -->
+<div id="app">
+
+  <!-- ────── AUTH SCREENS ────── -->
+
+  <!-- LOGIN -->
+  <div id="screen-login" class="screen">
+    <div class="auth-scroll">
+      <div class="auth-logo">
+        <div class="logo-box">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="M20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4Z" stroke="#7C6FFF" stroke-width="2"/><path d="M22 6L12 13L2 6" stroke="#7C6FFF" stroke-width="2"/></svg>
+        </div>
+        <h1>LetterBox</h1>
+        <p>Say it better.</p>
+      </div>
+      <div class="auth-form">
+        <div class="field">
+          <label>Email</label>
+          <div class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="currentColor" stroke-width="2"/><path d="M22 6L12 13L2 6" stroke="currentColor" stroke-width="2"/></svg>
+            <input id="login-email" type="email" placeholder="you@example.com" autocomplete="email" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <div class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2"/><path d="M7 11V7C7 4.24 9.24 2 12 2C14.76 2 17 4.24 17 7V11" stroke="currentColor" stroke-width="2"/></svg>
+            <input id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password" />
+            <button class="eye-btn" id="login-eye">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="forgot-link" onclick="showScreen('forgot')">Forgot Password?</div>
+        <button class="btn-primary" id="login-btn" onclick="doLogin()">
+          <span>Log In</span>
+        </button>
+      </div>
+      <div class="auth-link" style="margin-top:28px">
+        Don't have an account? <a onclick="showScreen('signup')">Sign Up</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIGNUP -->
+  <div id="screen-signup" class="screen">
+    <div class="auth-scroll">
+      <button class="back-btn" onclick="showScreen('login')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Back
+      </button>
+      <div class="auth-big-title">Create Account</div>
+      <div class="auth-subtitle">Join LetterBox today 🎉</div>
+      <div class="auth-form">
+        <div class="field">
+          <label>Full Name</label>
+          <div class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 21V19C4 16.79 7.58 15 12 15C16.42 15 20 16.79 20 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <input id="su-name" type="text" placeholder="Your name" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Username</label>
+          <div class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M14.31 8L20.05 17.94M9.69 8H21.17M7.38 12L13.12 2.06M9.69 16L3.95 6.06M14.31 16H2.83M16.62 12L10.88 21.94" stroke="currentColor" stroke-width="2"/></svg>
+            <input id="su-username" type="text" placeholder="e.g. john_doe" autocomplete="off" oninput="this.value=this.value.toLowerCase().replace(/\s/g,'')" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <div class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="currentColor" stroke-width="2"/><path d="M22 6L12 13L2 6" stroke="currentColor" stroke-width="2"/></svg>
+            <input id="su-email" type="email" placeholder="you@example.com" autocomplete="email" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <div class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2"/><path d="M7 11V7C7 4.24 9.24 2 12 2C14.76 2 17 4.24 17 7V11" stroke="currentColor" stroke-width="2"/></svg>
+            <input id="su-pass" type="password" placeholder="Min. 6 characters" />
+            <button class="eye-btn" id="su-eye">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg>
+            </button>
+          </div>
+        </div>
+        <button class="btn-primary" id="signup-btn" onclick="doSignup()" style="margin-top:6px">
+          <span>Create Account</span>
+        </button>
+      </div>
+      <div class="auth-link" style="margin-top:24px">
+        Already have an account? <a onclick="showScreen('login')">Log In</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- FORGOT PASSWORD -->
+  <div id="screen-forgot" class="screen">
+    <div class="auth-scroll">
+      <button class="back-btn" onclick="showScreen('login')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Back
+      </button>
+      <div id="forgot-content">
+        <div class="sent-icon">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M21 2L11 13M21 2L15 22L11 13L2 9L21 2Z" stroke="#7C6FFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="auth-big-title">Reset Password</div>
+        <div class="auth-subtitle" id="forgot-sub">Enter your registered email and we'll send a reset link.</div>
+        <div class="auth-form" id="forgot-form">
+          <div class="field">
+            <label>Email</label>
+            <div class="input-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="currentColor" stroke-width="2"/><path d="M22 6L12 13L2 6" stroke="currentColor" stroke-width="2"/></svg>
+              <input id="forgot-email" type="email" placeholder="you@example.com" />
+            </div>
+          </div>
+          <button class="btn-primary" id="forgot-btn" onclick="doForgot()"><span>Send Reset Link</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ────── MAIN SCREENS ────── -->
+
+  <!-- HOME -->
+  <div id="screen-home" class="screen">
+    <div class="header">
+      <span class="header-title">LetterBox</span>
+      <button class="icon-btn" onclick="switchTab('search')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/><path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="chat-list" id="chat-list">
+      <div class="spinner-wrap"><div class="spinner"></div></div>
+    </div>
+    <div class="tab-bar" id="tab-bar-home">
+      <button class="tab-btn active" onclick="switchTab('home')">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="currentColor" stroke-width="2"/></svg>
+        Chats
+      </button>
+      <button class="tab-btn" onclick="switchTab('search')">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/><path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Search
+      </button>
+      <button class="tab-btn" onclick="switchTab('profile')">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 21V19C4 16.79 7.58 15 12 15C16.42 15 20 16.79 20 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Profile
+      </button>
+    </div>
+  </div>
+
+  <!-- SEARCH -->
+  <div id="screen-search" class="screen">
+    <div class="header"><span class="header-title">Search</span></div>
+    <div class="search-body">
+      <div class="search-bar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2" opacity=".5"/><path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".5"/></svg>
+        <input id="search-input" type="text" placeholder="Search by username or email..." autocomplete="off" />
+        <button class="clear-btn" id="search-clear" onclick="clearSearch()" style="display:none">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M15 9L9 15M9 9L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <button class="btn-primary" onclick="doSearch()" style="height:44px;margin-bottom:12px">Search</button>
+      <div class="user-list" id="user-list"></div>
+    </div>
+    <div class="tab-bar">
+      <button class="tab-btn" onclick="switchTab('home')">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="currentColor" stroke-width="2"/></svg>
+        Chats
+      </button>
+      <button class="tab-btn active" onclick="switchTab('search')">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/><path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Search
+      </button>
+      <button class="tab-btn" onclick="switchTab('profile')">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 21V19C4 16.79 7.58 15 12 15C16.42 15 20 16.79 20 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Profile
+      </button>
+    </div>
+  </div>
+
+  <!-- PROFILE -->
+  <div id="screen-profile" class="screen">
+    <div class="header"><span class="header-title">Profile</span></div>
+    <div class="profile-scroll" id="profile-scroll">
+      <div class="spinner-wrap"><div class="spinner"></div></div>
+    </div>
+    <div class="tab-bar">
+      <button class="tab-btn" onclick="switchTab('home')">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="currentColor" stroke-width="2"/></svg>
+        Chats
+      </button>
+      <button class="tab-btn" onclick="switchTab('search')">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/><path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Search
+      </button>
+      <button class="tab-btn active" onclick="switchTab('profile')">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 21V19C4 16.79 7.58 15 12 15C16.42 15 20 16.79 20 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Profile
+      </button>
+    </div>
+  </div>
+
+  <!-- CHAT -->
+  <div id="screen-chat" class="screen">
+    <div class="header">
+      <button class="icon-btn" onclick="goBack()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <div id="chat-av" class="avatar" style="width:40px;height:40px;font-size:.9rem"></div>
+      <div class="chat-header-info">
+        <div class="chat-header-name" id="chat-other-name"></div>
+        <div class="chat-header-status" id="chat-other-status"></div>
+      </div>
+    </div>
+    <div class="messages-wrap" id="messages-wrap"></div>
+    <div class="uploading-bar" id="upload-bar" style="display:none">
+      <div class="spinner" style="width:18px;height:18px;border-width:2px"></div>
+      Sending image...
+    </div>
+    <div class="input-bar">
+      <button class="attach-btn" onclick="pickImage()">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" stroke="currentColor" stroke-width="2"/><path d="M21 15L16 10L5 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <textarea class="msg-input" id="msg-input" rows="1" placeholder="Type a message..." oninput="autoGrow(this)"></textarea>
+      <button class="send-btn" id="send-btn" disabled onclick="sendTextMsg()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <input type="file" id="img-file-input" accept="image/*" style="display:none" onchange="handleImageFile(this)" />
+  </div>
+
+</div>
+
+<!-- Image lightbox -->
+<div id="lightbox" onclick="document.getElementById('lightbox').classList.remove('open')">
+  <img id="lightbox-img" src="" />
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     FIREBASE SDK (v10 modular via CDN compat bundle)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+import {
+  getAuth, onAuthStateChanged, createUserWithEmailAndPassword,
+  signInWithEmailAndPassword, sendPasswordResetEmail, signOut, updateProfile
+} from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+import {
+  getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc,
+  addDoc, onSnapshot, query, where, orderBy, limit, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+import {
+  getStorage, ref, uploadBytes, getDownloadURL
+} from "https://www.gstatic.com/firebasejs/10.11.0/firebase-storage.js";
+
+/* ════════════════════════════════════════════════════════════
+   🔑  YOUR FIREBASE CONFIG — REPLACE THESE VALUES
+   Go to: console.firebase.google.com →
+   Project Settings → Your Apps → SDK setup → Config
+════════════════════════════════════════════════════════════ */
+const firebaseConfig = {
+  apiKey:            "AIzaSyCgiRWoPvobwvtXi8BqCheMazPMLiprGUA",
+  authDomain:        "letterbox-2d6b4.firebaseapp.com",
+  projectId:         "letterbox-2d6b4",
+  storageBucket:     "letterbox-2d6b4.firebasestorage.app",
+  messagingSenderId: "952939362831",
+  appId:             "1:952939362831:web:78d68cab6266995d6ec17a"
+};
+
+/* ══ INIT ══ */
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+const stor = getStorage(app);
+
+/* ══════════════════════════════════════════════════════════
+   GLOBAL STATE
+══════════════════════════════════════════════════════════ */
+let currentUser   = null;
+let currentProfile= null;
+let activeChatId  = null;
+let otherUserData = null;
+let msgUnsub      = null;
+let chatsUnsub    = null;
+let otherUserUnsub= null;
+let prevScreen    = 'home';
+
+const AVATAR_COLORS = ['#7C6FFF','#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#FF8B94'];
+const getColor = n => AVATAR_COLORS[(n||'').charCodeAt(0) % AVATAR_COLORS.length];
+const getInitials = n => (n||'').split(' ').slice(0,2).map(x=>x[0]).join('').toUpperCase();
+const getChatId = (a,b) => [a,b].sort().join('_');
+
+/* ══════════════════════════════════════════════════════════
+   NAVIGATION HELPERS
+══════════════════════════════════════════════════════════ */
+window.showScreen = (name) => {
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.remove('active','slide-left','slide-right');
+  });
+  const el = document.getElementById('screen-' + name);
+  if (el) { el.classList.add('active'); }
+};
+
+window.switchTab = (tab) => {
+  prevScreen = tab;
+  showScreen(tab);
+};
+
+window.goBack = () => {
+  // Cleanup chat listeners
+  if (msgUnsub)       { msgUnsub(); msgUnsub = null; }
+  if (otherUserUnsub) { otherUserUnsub(); otherUserUnsub = null; }
+  activeChatId = null;
+  showScreen(prevScreen || 'home');
+};
+
+/* ══════════════════════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════════════════════ */
+window.toast = (msg, isErr = false) => {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = isErr ? 'show error' : 'show';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.className = ''; }, 3000);
+};
+
+/* ══════════════════════════════════════════════════════════
+   AVATAR HELPER
+══════════════════════════════════════════════════════════ */
+const avatarHtml = (user, size, withDot = false) => {
+  const s = size || 46;
+  const dot = withDot ? `<span class="online-dot" style="background:${user?.isOnline ? '#4ADE80' : '#444455'}"></span>` : '';
+  if (user?.photoURL) {
+    return `<div class="avatar" style="width:${s}px;height:${s}px"><img src="${user.photoURL}" />${dot}</div>`;
+  }
+  const ini = getInitials(user?.name);
+  const bg  = getColor(user?.name);
+  return `<div class="avatar" style="width:${s}px;height:${s}px;background:${bg};font-size:${Math.round(s*.36)}px"><span class="avatar-initials">${ini}</span>${dot}</div>`;
+};
+
+const setAvatarEl = (el, user, size, withDot = false) => {
+  if (!el) return;
+  el.style.width  = size + 'px';
+  el.style.height = size + 'px';
+  el.style.fontSize = Math.round(size * .36) + 'px';
+  el.style.background = user?.photoURL ? 'transparent' : getColor(user?.name);
+  el.innerHTML = user?.photoURL
+    ? `<img src="${user.photoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" />`
+    : `<span>${getInitials(user?.name)}</span>`;
+  if (withDot) {
+    el.innerHTML += `<span class="online-dot" style="background:${user?.isOnline ? '#4ADE80' : '#444455'}"></span>`;
+  }
+};
+
+/* ══════════════════════════════════════════════════════════
+   AUTH LISTENER
+══════════════════════════════════════════════════════════ */
+onAuthStateChanged(auth, async user => {
+  document.getElementById('splash').classList.add('hide');
+  if (user) {
+    currentUser = user;
+    // Update online status
+    try { await updateDoc(doc(db,'users',user.uid),{ isOnline:true, lastSeen:serverTimestamp() }); } catch(_){}
+    const snap = await getDoc(doc(db,'users',user.uid));
+    if (snap.exists()) currentProfile = { id: snap.id, ...snap.data() };
+    showScreen('home');
+    loadChats();
+    loadProfile();
+  } else {
+    currentUser = null; currentProfile = null;
+    if (chatsUnsub) { chatsUnsub(); chatsUnsub = null; }
+    showScreen('login');
+  }
+});
+
+/* Page visibility — online/offline */
+document.addEventListener('visibilitychange', async () => {
+  if (!currentUser) return;
+  try {
+    await updateDoc(doc(db,'users',currentUser.uid), {
+      isOnline: !document.hidden, lastSeen: serverTimestamp()
+    });
+  } catch(_){}
+});
+
+/* ══════════════════════════════════════════════════════════
+   AUTH ACTIONS
+══════════════════════════════════════════════════════════ */
+window.doLogin = async () => {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-pass').value;
+  if (!email || !pass) { toast('Fill in all fields', true); return; }
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true; btn.querySelector('span').textContent = 'Logging in...';
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch(e) {
+    let msg = 'Login failed';
+    if (e.code==='auth/invalid-credential'||e.code==='auth/wrong-password') msg = 'Incorrect email or password';
+    else if (e.code==='auth/user-not-found') msg = 'No account with this email';
+    else if (e.code==='auth/too-many-requests') msg = 'Too many attempts, try later';
+    toast(msg, true);
+  } finally {
+    btn.disabled = false; btn.querySelector('span').textContent = 'Log In';
+  }
+};
+
+window.doSignup = async () => {
+  const name     = document.getElementById('su-name').value.trim();
+  const username = document.getElementById('su-username').value.trim().toLowerCase();
+  const email    = document.getElementById('su-email').value.trim();
+  const pass     = document.getElementById('su-pass').value;
+  if (!name||!username||!email||!pass) { toast('Fill in all fields', true); return; }
+  if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) { toast('Username: 3-20 chars, letters/numbers/_', true); return; }
+  if (pass.length < 6) { toast('Password min 6 characters', true); return; }
+  const btn = document.getElementById('signup-btn');
+  btn.disabled = true; btn.querySelector('span').textContent = 'Creating...';
+  try {
+    // Check username
+    const unameSnap = await getDoc(doc(db,'usernames',username));
+    if (unameSnap.exists()) { toast('Username taken! Choose another.', true); return; }
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    await updateProfile(cred.user, { displayName: name });
+    const userData = { uid:cred.user.uid, name, username, email:email.toLowerCase(), photoURL:null, about:'Hey there! I am using LetterBox.', isOnline:true, lastSeen:serverTimestamp(), createdAt:serverTimestamp() };
+    await Promise.all([
+      setDoc(doc(db,'users',cred.user.uid), userData),
+      setDoc(doc(db,'usernames',username), { uid:cred.user.uid })
+    ]);
+  } catch(e) {
+    let msg = e.message || 'Signup failed';
+    if (e.code==='auth/email-already-in-use') msg = 'Email already registered';
+    toast(msg, true);
+  } finally {
+    btn.disabled = false; btn.querySelector('span').textContent = 'Create Account';
+  }
+};
+
+window.doForgot = async () => {
+  const email = document.getElementById('forgot-email').value.trim();
+  if (!email) { toast('Enter your email', true); return; }
+  const btn = document.getElementById('forgot-btn');
+  btn.disabled = true; btn.querySelector('span').textContent = 'Sending...';
+  try {
+    await sendPasswordResetEmail(auth, email);
+    document.getElementById('forgot-form').style.display = 'none';
+    document.getElementById('forgot-sub').textContent = '✅ Reset link sent! Check your inbox.';
+  } catch(e) {
+    toast('Could not send reset email', true);
+  } finally {
+    btn.disabled = false; btn.querySelector('span').textContent = 'Send Reset Link';
+  }
+};
+
+window.doLogout = async () => {
+  if (!confirm('Log out?')) return;
+  if (currentUser) {
+    try { await updateDoc(doc(db,'users',currentUser.uid),{ isOnline:false, lastSeen:serverTimestamp() }); } catch(_){}
+  }
+  await signOut(auth);
+};
+
+/* Password eye toggles */
+['login','su'].forEach(p => {
+  const eyeBtn = document.getElementById(p+'-eye');
+  if (!eyeBtn) return;
+  eyeBtn.addEventListener('click', () => {
+    const inp = document.getElementById(p === 'login' ? 'login-pass' : 'su-pass');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  });
+});
+
+/* ══════════════════════════════════════════════════════════
+   HOME — CHAT LIST
+══════════════════════════════════════════════════════════ */
+const loadChats = () => {
+  if (!currentUser) return;
+  if (chatsUnsub) chatsUnsub();
+  const q = query(
+    collection(db,'chats'),
+    where('participants','array-contains',currentUser.uid),
+    orderBy('lastMessageTime','desc')
+  );
+  chatsUnsub = onSnapshot(q, async snap => {
+    if (snap.empty) {
+      document.getElementById('chat-list').innerHTML = `
+        <div class="empty-state">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none"><path d="M21 15C21 15.5 20.8 16 20.4 16.4C20 16.8 19.5 17 19 17H7L3 21V5C3 4.5 3.2 4 3.6 3.6C4 3.2 4.5 3 5 3H19C19.5 3 20 3.2 20.4 3.6C20.8 4 21 4.5 21 5V15Z" stroke="currentColor" stroke-width="1.5"/></svg>
+          <h3>No conversations yet</h3>
+          <p>Search for users to start chatting</p>
+        </div>`;
+      return;
+    }
+    // Fetch user data for each chat
+    const items = await Promise.all(snap.docs.map(async d => {
+      const chat = { id: d.id, ...d.data() };
+      const otherId = chat.participants.find(p => p !== currentUser.uid);
+      let other = null;
+      try {
+        const uSnap = await getDoc(doc(db,'users',otherId));
+        if (uSnap.exists()) other = { id:uSnap.id, ...uSnap.data() };
+      } catch(_){}
+      return { chat, other };
+    }));
+
+    document.getElementById('chat-list').innerHTML = items.map(({ chat, other }) => {
+      const isMe = chat.lastMessageSenderId === currentUser.uid;
+      const prev = chat.lastMessage ? (isMe ? `You: ${chat.lastMessage}` : chat.lastMessage) : 'Start chatting!';
+      const time = chat.lastMessageTime ? fmtChatTime(chat.lastMessageTime.toDate()) : '';
+      return `<div class="chat-item" onclick="openChat('${chat.id}','${other?.id||''}')">
+        ${avatarHtml(other, 46, true)}
+        <div class="chat-info">
+          <div class="chat-top">
+            <span class="chat-name">${esc(other?.name||'Unknown')}</span>
+            <span class="chat-time">${time}</span>
+          </div>
+          <div class="chat-last">${esc(prev.substring(0,50))}</div>
+        </div>
+      </div>`;
+    }).join('');
+  });
+};
+
+/* ══════════════════════════════════════════════════════════
+   SEARCH
+══════════════════════════════════════════════════════════ */
+document.getElementById('search-input').addEventListener('input', function() {
+  document.getElementById('search-clear').style.display = this.value ? 'flex' : 'none';
+});
+
+window.clearSearch = () => {
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-clear').style.display = 'none';
+  document.getElementById('user-list').innerHTML = '';
+};
+
+window.doSearch = async () => {
+  const q = document.getElementById('search-input').value.trim().toLowerCase();
+  if (!q) { toast('Enter a username or email', true); return; }
+  const ul = document.getElementById('user-list');
+  ul.innerHTML = '<div class="spinner-wrap"><div class="spinner"></div></div>';
+  const results = new Map();
+  try {
+    const [uSnap, eSnap] = await Promise.all([
+      getDocs(query(collection(db,'users'),where('username','>=',q),where('username','<=',q+'\uf8ff'))),
+      getDocs(query(collection(db,'users'),where('email','>=',q),where('email','<=',q+'\uf8ff')))
+    ]);
+    uSnap.forEach(d => { if (d.id !== currentUser.uid) results.set(d.id,{id:d.id,...d.data()}); });
+    eSnap.forEach(d => { if (d.id !== currentUser.uid) results.set(d.id,{id:d.id,...d.data()}); });
+  } catch(e) { toast('Search failed', true); }
+  const list = Array.from(results.values());
+  if (!list.length) {
+    ul.innerHTML = `<div class="empty-state"><svg width="48" height="48" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M4 21V19C4 16.79 7.58 15 12 15C16.42 15 20 16.79 20 19V21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><h3>No users found</h3><p>Try a different username or email</p></div>`;
+    return;
+  }
+  ul.innerHTML = list.map(u => `
+    <div class="user-item" onclick="startChatWith('${u.id}')">
+      ${avatarHtml(u, 46)}
+      <div class="user-info">
+        <div class="user-name">${esc(u.name)}</div>
+        <div class="user-uname">@${esc(u.username)}</div>
+      </div>
+      <div class="chat-icon-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21 15C21 15.5 20.8 16 20.4 16.4C20 16.8 19.5 17 19 17H7L3 21V5C3 4.5 3.2 4 3.6 3.6C4 3.2 4.5 3 5 3H19C19.5 3 20 3.2 20.4 3.6C20.8 4 21 4.5 21 5V15Z" stroke="#7C6FFF" stroke-width="2"/></svg>
+      </div>
+    </div>`).join('');
+};
+
+window.startChatWith = async (userId) => {
+  const chatId = getChatId(currentUser.uid, userId);
+  const chatRef = doc(db,'chats',chatId);
+  const chatSnap = await getDoc(chatRef);
+  if (!chatSnap.exists()) {
+    await setDoc(chatRef,{ participants:[currentUser.uid,userId], createdAt:serverTimestamp(), lastMessage:null, lastMessageTime:null, lastMessageSenderId:null });
+  }
+  await openChat(chatId, userId);
+};
+
+/* ══════════════════════════════════════════════════════════
+   CHAT SCREEN
+══════════════════════════════════════════════════════════ */
+window.openChat = async (chatId, otherUserId) => {
+  // Cleanup previous
+  if (msgUnsub)       { msgUnsub(); msgUnsub = null; }
+  if (otherUserUnsub) { otherUserUnsub(); otherUserUnsub = null; }
+
+  activeChatId = chatId;
+  document.getElementById('messages-wrap').innerHTML = '<div class="spinner-wrap"><div class="spinner"></div></div>';
+  document.getElementById('msg-input').value = '';
+  document.getElementById('send-btn').disabled = true;
+
+  // Fetch other user once, then subscribe for status
+  try {
+    const snap = await getDoc(doc(db,'users',otherUserId));
+    if (snap.exists()) {
+      otherUserData = { id: snap.id, ...snap.data() };
+      renderChatHeader(otherUserData);
+    }
+  } catch(_){}
+
+  otherUserUnsub = onSnapshot(doc(db,'users',otherUserId), snap => {
+    if (snap.exists()) {
+      otherUserData = { id: snap.id, ...snap.data() };
+      renderChatHeader(otherUserData);
+    }
+  });
+
+  showScreen('chat');
+
+  // Subscribe messages
+  const q = query(collection(db,'chats',chatId,'messages'), orderBy('timestamp','desc'), limit(50));
+  msgUnsub = onSnapshot(q, snap => {
+    const msgs = [];
+    snap.forEach(d => msgs.push({ id:d.id, ...d.data() }));
+    msgs.reverse();
+    renderMessages(msgs);
+    markSeen(chatId);
+  });
+
+  // msg input events
+  const inp = document.getElementById('msg-input');
+  inp.oninput = () => {
+    document.getElementById('send-btn').disabled = !inp.value.trim();
+    autoGrow(inp);
+  };
+  inp.onkeydown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTextMsg(); }
+  };
+};
+
+const renderChatHeader = (u) => {
+  document.getElementById('chat-other-name').textContent = u.name;
+  const statusEl = document.getElementById('chat-other-status');
+  if (u.isOnline) {
+    statusEl.textContent = 'Online';
+    statusEl.className = 'chat-header-status online';
+  } else {
+    statusEl.textContent = u.lastSeen ? 'last seen ' + fmtLastSeen(u.lastSeen.toDate()) : 'last seen recently';
+    statusEl.className = 'chat-header-status';
+  }
+  setAvatarEl(document.getElementById('chat-av'), u, 40);
+};
+
+const renderMessages = (msgs) => {
+  const wrap = document.getElementById('messages-wrap');
+  if (!msgs.length) {
+    wrap.innerHTML = '<div style="flex:1;display:flex;align-items:center;justify-content:center"><p style="color:var(--text2);font-size:.85rem">No messages yet. Say hello! 👋</p></div>';
+    return;
+  }
+  wrap.innerHTML = msgs.map((m,i) => {
+    const isMe = m.senderId === currentUser.uid;
+    const ts = m.timestamp ? fmtMsgTime(m.timestamp.toDate()) : '';
+    const seenIcon = isMe ? `<span class="seen-icon" style="color:${m.seen ? '#A39AFF' : 'rgba(255,255,255,.35)'}">${m.seen ? '✓✓' : '✓'}</span>` : '';
+    if (m.type === 'image') {
+      return `<div class="msg-row ${isMe?'me':'them'}">
+        <div class="bubble ${isMe?'me':'them'} bubble-img-wrap">
+          <img class="bubble-img" src="${esc(m.content)}" onclick="openLightbox('${esc(m.content)}')" loading="lazy" />
+          <div class="bubble-meta"><span class="bubble-time">${ts}</span>${seenIcon}</div>
+        </div>
+      </div>`;
+    }
+    return `<div class="msg-row ${isMe?'me':'them'}">
+      <div class="bubble ${isMe?'me':'them'}">
+        <div class="bubble-text">${esc(m.content)}</div>
+        <div class="bubble-meta"><span class="bubble-time">${ts}</span>${seenIcon}</div>
+      </div>
+    </div>`;
+  }).join('');
+  wrap.scrollTop = wrap.scrollHeight;
+};
+
+const markSeen = async (chatId) => {
+  if (!currentUser) return;
+  try {
+    const q = query(collection(db,'chats',chatId,'messages'), where('seen','==',false), where('senderId','!=',currentUser.uid), limit(40));
+    const snap = await getDocs(q);
+    await Promise.all(snap.docs.map(d => updateDoc(d.ref, { seen: true })));
+  } catch(_){}
+};
+
+window.sendTextMsg = async () => {
+  const inp = document.getElementById('msg-input');
+  const text = inp.value.trim();
+  if (!text || !activeChatId) return;
+  inp.value = ''; inp.style.height = '';
+  document.getElementById('send-btn').disabled = true;
+  try {
+    await addDoc(collection(db,'chats',activeChatId,'messages'), {
+      senderId: currentUser.uid, content: text, type: 'text',
+      timestamp: serverTimestamp(), seen: false
+    });
+    await updateDoc(doc(db,'chats',activeChatId), {
+      lastMessage: text, lastMessageTime: serverTimestamp(), lastMessageSenderId: currentUser.uid
+    });
+  } catch(e) { toast('Failed to send message', true); }
+};
+
+/* ── Image upload ── */
+window.pickImage = () => document.getElementById('img-file-input').click();
+
+window.handleImageFile = async (inp) => {
+  const file = inp.files[0];
+  if (!file || !activeChatId) return;
+  inp.value = '';
+  if (file.size > 10 * 1024 * 1024) { toast('Image must be under 10MB', true); return; }
+  document.getElementById('upload-bar').style.display = 'flex';
+  try {
+    const path = `chats/${activeChatId}/${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const storRef = ref(stor, path);
+    await uploadBytes(storRef, file);
+    const url = await getDownloadURL(storRef);
+    await addDoc(collection(db,'chats',activeChatId,'messages'), {
+      senderId: currentUser.uid, content: url, type: 'image',
+      timestamp: serverTimestamp(), seen: false
+    });
+    await updateDoc(doc(db,'chats',activeChatId), {
+      lastMessage: '📷 Photo', lastMessageTime: serverTimestamp(), lastMessageSenderId: currentUser.uid
+    });
+  } catch(e) { toast('Image upload failed', true); }
+  finally { document.getElementById('upload-bar').style.display = 'none'; }
+};
+
+/* Lightbox */
+window.openLightbox = (url) => {
+  document.getElementById('lightbox-img').src = url;
+  document.getElementById('lightbox').classList.add('open');
+};
+
+/* ══════════════════════════════════════════════════════════
+   PROFILE
+══════════════════════════════════════════════════════════ */
+const loadProfile = async () => {
+  if (!currentUser) return;
+  try {
+    const snap = await getDoc(doc(db,'users',currentUser.uid));
+    if (snap.exists()) { currentProfile = { id:snap.id, ...snap.data() }; }
+  } catch(_){}
+  renderProfile();
+};
+
+const renderProfile = () => {
+  const p = currentProfile;
+  if (!p) return;
+  document.getElementById('profile-scroll').innerHTML = `
+    <div class="profile-hero">
+      <div class="avatar-change" onclick="changePhoto()">
+        ${avatarHtml(p, 90)}
+        <div class="avatar-overlay">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M23 19C23 19.5 22.8 20 22.4 20.4C22 20.8 21.5 21 21 21H3C2.5 21 2 20.8 1.6 20.4C1.2 20 1 19.5 1 19V8C1 7.5 1.2 7 1.6 6.6C2 6.2 2.5 6 3 6H7L9 3H15L17 6H21C21.5 6 22 6.2 22.4 6.6C22.8 7 23 7.5 23 8V19Z" stroke="white" stroke-width="2"/><circle cx="12" cy="13" r="4" stroke="white" stroke-width="2"/></svg>
+        </div>
+      </div>
+      <div class="profile-name">${esc(p.name)}</div>
+      <div class="profile-uname">@${esc(p.username)}</div>
+      <div class="profile-email">${esc(p.email)}</div>
+    </div>
+    <div class="profile-card">
+      <div class="profile-card-label">About</div>
+      <div class="about-row" id="about-view">
+        <div class="about-text" id="about-text">${esc(p.about||'Add a bio...')}</div>
+        <button class="edit-btn" onclick="editAbout()">Edit</button>
+      </div>
+      <div id="about-edit" style="display:none">
+        <textarea class="about-textarea" id="about-ta" rows="3" maxlength="150">${esc(p.about||'')}</textarea>
+        <div class="about-actions">
+          <button class="btn-sm btn-sm-cancel" onclick="cancelAbout()">Cancel</button>
+          <button class="btn-sm btn-sm-save" onclick="saveAbout()">Save</button>
+        </div>
+      </div>
+    </div>
+    <button class="logout-btn" onclick="doLogout()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><polyline points="16 17 21 12 16 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Log Out
+    </button>`;
+};
+
+window.editAbout = () => {
+  document.getElementById('about-view').style.display = 'none';
+  document.getElementById('about-edit').style.display = 'block';
+  document.getElementById('about-ta').focus();
+};
+window.cancelAbout = () => {
+  document.getElementById('about-view').style.display = 'flex';
+  document.getElementById('about-edit').style.display = 'none';
+};
+window.saveAbout = async () => {
+  const val = document.getElementById('about-ta').value.trim();
+  try {
+    await updateDoc(doc(db,'users',currentUser.uid),{ about: val });
+    currentProfile.about = val;
+    document.getElementById('about-text').textContent = val || 'Add a bio...';
+    cancelAbout();
+    toast('Bio updated!');
+  } catch(e) { toast('Failed to save', true); }
+};
+
+window.changePhoto = () => {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = async () => {
+    const file = inp.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast('Photo must be under 5MB', true); return; }
+    toast('Uploading photo...');
+    try {
+      const storRef = ref(stor, `profiles/${currentUser.uid}/avatar`);
+      await uploadBytes(storRef, file);
+      const url = await getDownloadURL(storRef);
+      await updateDoc(doc(db,'users',currentUser.uid),{ photoURL: url });
+      currentProfile.photoURL = url;
+      renderProfile();
+      toast('Photo updated!');
+    } catch(e) { toast('Upload failed', true); }
+  };
+  inp.click();
+};
+
+/* ══════════════════════════════════════════════════════════
+   UTILS
+══════════════════════════════════════════════════════════ */
+window.autoGrow = (el) => {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+};
+
+const esc = (s) => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+const fmtChatTime = (d) => {
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  const yesterday = new Date(now); yesterday.setDate(now.getDate()-1);
+  if (isToday) return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString([],{day:'2-digit',month:'2-digit',year:'2-digit'});
+};
+
+const fmtMsgTime = (d) => d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+
+const fmtLastSeen = (d) => {
+  const now = new Date();
+  if (d.toDateString()===now.toDateString()) return 'today at ' + fmtMsgTime(d);
+  const y = new Date(now); y.setDate(now.getDate()-1);
+  if (d.toDateString()===y.toDateString()) return 'yesterday at ' + fmtMsgTime(d);
+  return d.toLocaleDateString();
+};
+
+/* ══ SEARCH input enter key ══ */
+document.getElementById('search-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSearch();
+});
+</script>
+</body>
+</html>
